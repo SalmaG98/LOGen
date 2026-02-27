@@ -114,7 +114,13 @@ def gen(rank, world_size, cfg, weights, num_instances, split, rootdir, batch_siz
             x_center = batch['center']
             x_size = batch['size']
             x_orientation = batch['orientation']
-            x_cond = torch.cat((x_center, x_size), dim=-1)
+            if cfg['model']['cyclic_conditions'] > 0:
+                if cfg['model']['relative_angles'] == True:
+                    x_cond = torch.cat((x_center, x_size),-1)
+                else:
+                    x_cond = torch.cat((torch.hstack((x_center[:,0][:, None], x_orientation)), torch.hstack((x_center[:,1:], x_size))),-1)
+            else:
+                x_cond = torch.hstack((x_center, x_size, x_orientation))
 
             if condition == "recreation":
                 x_t = torch.randn(x_object.shape, device=model.device)

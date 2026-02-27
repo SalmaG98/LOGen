@@ -74,9 +74,9 @@ class Diffuser(LightningModule):
         point_embeddings = self.hparams['model']['embeddings']
         model_size = self.hparams['model']['size']
         num_classes = self.hparams['model']['num_classes']
+        num_cyclic_conditions =  self.hparams['model']['cyclic_conditions']
         self.in_channels = self.hparams['model']['in_channels']
-        self.model = self.model_factory(conditioning_type, point_embeddings, model_size, num_classes, self.in_channels)
-
+        self.model = self.model_factory(conditioning_type, point_embeddings, model_size, num_cyclic_conditions, num_classes, self.in_channels)
         self.chamfer_distance = ChamferDistance()
         self.emd = EMD()
         self.rmse = RMSE()
@@ -85,14 +85,14 @@ class Diffuser(LightningModule):
         self.w_uncond = self.hparams['train']['uncond_w']
         self.visualize = self.hparams['diff']['visualize']
 
-    def model_factory(self, conditioning_type, point_embeddings, model_size, num_classes, in_channels):
+    def model_factory(self, conditioning_type, point_embeddings, model_size, num_cyclic_conditions, num_classes, in_channels):
         factory = None
         if conditioning_type == 'logen':
             factory = LOGen_models
         elif conditioning_type == 'dit3d':
             factory = DiT3D_models
         model = factory[model_size]
-        return model(num_classes=num_classes, in_channels=in_channels)
+        return model(num_classes=num_classes, in_channels=in_channels, num_cyclic_conditions=num_cyclic_conditions)
 
     def scheduler_to_cuda(self):
         self.dpm_scheduler.timesteps = self.dpm_scheduler.timesteps.cuda()
@@ -160,10 +160,18 @@ class Diffuser(LightningModule):
 
         x_center = batch['center']
         x_size = batch['size']
+        x_orientation = batch['orientation']
+
         
         x_class = batch['class']
 
-        x_cond = torch.cat((x_center, x_size),-1) # Orientation already included via relative angles
+        if self.hparams['model']['cyclic_conditions'] > 0:
+            if self.hparams['model']['relative_angles'] == True:
+                x_cond = torch.cat((x_center, x_size),-1)
+            else:
+                x_cond = torch.cat((torch.hstack((x_center[:,0][:, None], x_orientation)), torch.hstack((x_center[:,1:], x_size))),-1)
+        else:
+            x_cond = torch.hstack((x_center, x_size, x_orientation))
         
         denoise_t = self.forward(t_sample, t, x_class, x_cond) * padding_mask
         loss_mse = self.p_losses(denoise_t, noise)
@@ -199,7 +207,15 @@ class Diffuser(LightningModule):
 
             x_center = batch['center']
             x_size = batch['size']
-            x_cond = torch.cat((x_center, x_size),-1)
+            x_orientation = batch['orientation']
+
+            if self.hparams['model']['cyclic_conditions'] > 0:
+                if self.hparams['model']['relative_angles'] == True:
+                    x_cond = torch.cat((x_center, x_size),-1)
+                else:
+                    x_cond = torch.cat((torch.hstack((x_center[:,0][:, None], x_orientation)), torch.hstack((x_center[:,1:], x_size))),-1)
+            else:
+                x_cond = torch.hstack((x_center, x_size, x_orientation))
 
             padding_mask = batch['padding_mask']
             x_t = torch.randn(x_object.shape, device=self.device)
