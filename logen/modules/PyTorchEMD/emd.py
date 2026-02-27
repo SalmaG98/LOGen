@@ -1,5 +1,5 @@
 import torch
-import logen.modules.PyTorchEMD.emd_cuda as emd_cuda
+import emd_cuda
 
 
 class EarthMoverDistanceFunction(torch.autograd.Function):
