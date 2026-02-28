@@ -38,15 +38,15 @@ def get_fid(model_name, root, split, object_class, evaluation_model, input_chann
             # Remove the 'model.' prefix
             new_key = key.replace('model.', '', 1)
             new_state_dict[new_key] = value
-        model_ns = NSPointnet(k=num_classes, input_channels=input_channels, return_act=True)
-        model_ns.load_state_dict(new_state_dict)
+        model = NSPointnet(k=num_classes, input_channels=input_channels, return_act=True)
+        model.load_state_dict(new_state_dict)
     
     if device is not None:
-        model_ns.to(device)
+        model.to(device)
 
-    model_ns.eval()
+    model.eval()
 
-    fid = FrechetInceptionDistance(feature=model_ns).to(device)
+    fid = FrechetInceptionDistance(feature=model).to(device)
 
     for i, batch in tqdm(enumerate(dl_generated)):
         pointcloud_batch = batch[0]
