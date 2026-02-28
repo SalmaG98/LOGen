@@ -7,6 +7,9 @@ from fpd.from_scratch.nuscenes_fpd_dataloader import num_classes
 from fpd.pretrained.dataloader import NuscenesGeneratedObjectsDataLoader
 # from evaluation.fpd.FPD import calculate_kid
 import os
+import sys
+import json
+import builtins
 try:
     from tqdm import tqdm
 except ImportError:
@@ -77,6 +80,10 @@ def get_kid(model_name, root, split, object_class, evaluation_model, input_chann
     print(f"Total instance number: {total}")
     print(f"Accuracy is  {correct/total}")
 
+    return {
+        "accuracy": correct/total
+    }
+
 @click.command()
 @click.option('--model_name', '-m', type=str, default='xs_4_1a_cross_pointnet_impcgf_4chfix_reordered_gen_2')
 @click.option('--root', '-r', type=str)
@@ -87,8 +94,14 @@ def get_kid(model_name, root, split, object_class, evaluation_model, input_chann
 @click.option('--pointnet_checkpoint_path', '-pckpt', type=str)
 @click.option('--class_label',   type=int, default=0)
 @click.option('--real', type=bool, default=False) # default False
-def main(model_name, root, split, object_class, evaluation_model, input_channels, pointnet_checkpoint_path, class_label, real):
-    get_kid(model_name, root, split, object_class, evaluation_model, input_channels, pointnet_checkpoint_path, class_label, real)
+@click.option('--silent', '-sl', type=bool, default=False)
+
+def main(model_name, root, split, object_class, evaluation_model, input_channels, pointnet_checkpoint_path, class_label, real, silent):
+    sys.stdout.flush()
+    if silent:
+        builtins.print = lambda *args, **kwargs: None
+    metrics = get_kid(model_name, root, split, object_class, evaluation_model, input_channels, pointnet_checkpoint_path, class_label, real)
+    sys.stdout.write(json.dumps(metrics))
 
 if __name__ == "__main__":
     main()

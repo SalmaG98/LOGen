@@ -2,6 +2,9 @@ import click
 import torch
 from CD_EMD.paired_dataloader import NuscenesPairedObjectsDataLoader
 import os
+import sys
+import json
+import builtins
 import scipy
 import scipy.spatial
 import numpy as np
@@ -50,14 +53,25 @@ def get_jsd(model_name, root, split, object_class, input_channels):
 
     print('JSD mean <<< {:.10f} >>> and std <<< {:.10f} >>> '.format(jsd_score[0], jsd_score[1]))
     
+    return {
+        "jsd_mean": jsd_score[0].item(),
+        "jsd_std": jsd_score[1].item()
+    }
+    
 @click.command()
 @click.option('--model_name', '-m', type=str, default='xs_logen_kitti360_bicycle_gen_split_by_sequence')
 @click.option('--root', '-r', type=str)
 @click.option('--split', '-s', type=str, default='val')
 @click.option('--object_class', '-cls', type=str, default='bicycle')
 @click.option('--input_channels', '-i', type=int, default=3)
-def main(model_name, root, split, object_class, input_channels):
-    get_jsd(model_name, root, split, object_class, input_channels)
+@click.option('--silent', '-sl', type=bool, default=False)
+
+def main(model_name, root, split, object_class, input_channels, silent):
+    sys.stdout.flush()
+    if silent:
+        builtins.print = lambda *args, **kwargs: None
+    metrics = get_jsd(model_name, root, split, object_class, input_channels)
+    sys.stdout.write(json.dumps(metrics))
 
 if __name__ == "__main__":
     main()

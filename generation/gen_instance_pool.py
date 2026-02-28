@@ -72,8 +72,11 @@ def main(config, weights, num_instances, split, rootdir, token_to_data, consiste
         gen(0, world_size, cfg, weights, num_instances, split, rootdir, cfg['train']['batch_size'], token_to_data, consistent_seed, existing_tokens, permutation_file, limit_samples_count, condition)
 
 def gen(rank, world_size, cfg, weights, num_instances, split, rootdir, batch_size, token_to_data, consistent_seed, existing_tokens, permutation_file, limit_samples_count, condition):
+    epoch = weights.split('/')[-1].split('.ckpt')[0].split('-')[0].replace('=','_')
+    
     os.environ['MASTER_ADDR'] = 'localhost'
-    os.environ['MASTER_PORT'] = '12355'
+    # add +epoch to avoid collision when multiple gen processes (/epoch) are launched on the same machine
+    os.environ['MASTER_PORT'] = str(12355+int(epoch.split('_')[-1]))
     dist.init_process_group(backend='nccl', init_method='env://', world_size=world_size, rank=rank)
 
     torch.cuda.set_device(rank)

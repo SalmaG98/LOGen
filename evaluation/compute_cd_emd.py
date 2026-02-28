@@ -4,6 +4,9 @@ from CD_EMD.paired_dataloader import NuscenesPairedObjectsDataLoader
 from CD_EMD.CD_EMD import calculate_cd_emd
 from logen.modules.metrics import ChamferDistance, EMD
 import os
+import sys
+import json
+import builtins
 
 def get_cd_emd(model_name, root, split, object_class, input_channels):
     print(f'Evaluating: {model_name} {split}', flush=True)
@@ -27,6 +30,12 @@ def get_cd_emd(model_name, root, split, object_class, input_channels):
         print('CD mean <<< {:.10f} >>> and std <<< {:.10f} >>> '.format(cd_score[0], cd_score[1]), file=f)
         print('EMD mean <<< {:.10f} >>> and std <<< {:.10f} >>>'.format(emd_score[0], emd_score[1]), file=f)
 
+    return {
+        "cd_mean" : cd_score[0].item(),
+        "cd_std" : cd_score[1].item(),
+        "emd_mean" : emd_score[0].item(),
+        "emd_std" : emd_score[1].item(),
+    }
 
 @click.command()
 @click.option('--model_name', '-m', type=str, default='xs_logen_kitti360_bicycle_gen_split_by_sequence')
@@ -34,8 +43,14 @@ def get_cd_emd(model_name, root, split, object_class, input_channels):
 @click.option('--split', '-s', type=str, default='val')
 @click.option('--object_class', '-cls', type=str, default='bicycle')
 @click.option('--input_channels', '-i', type=int, default=3)
-def main(model_name, root, split, object_class, input_channels):
-    get_cd_emd(model_name, root, split, object_class, input_channels)
+@click.option('--silent', '-sl', type=bool, default=False)
+
+def main(model_name, root, split, object_class, input_channels, silent):
+    sys.stdout.flush()
+    if silent:
+        builtins.print = lambda *args, **kwargs: None
+    metrics = get_cd_emd(model_name, root, split, object_class, input_channels)
+    sys.stdout.write(json.dumps(metrics))
 
 if __name__ == "__main__":
     main()

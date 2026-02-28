@@ -8,6 +8,9 @@ from fpd.from_scratch.nuscenes_fpd_dataloader import num_classes
 from fpd.pretrained.dataloader import NuscenesGeneratedObjectsDataLoader
 from torchmetrics.image.fid import FrechetInceptionDistance
 import os
+import sys
+import json
+import builtins
 try:
     from tqdm import tqdm
 except ImportError:
@@ -89,6 +92,11 @@ def get_kid(model_name, root, split, object_class, evaluation_model, input_chann
     with open(f'./evaluation/kid/experiments_distance_gens_05x_{input_channels}ch/{model_name}/kid_{evaluation_model}_{split}_{object_class}.txt', 'w') as f:
         print('Kernel Pointcloud Distance <<< {:.10f} >>>'.format(kid_mean), file=f)
 
+    return {
+        "kid_mean": kid_mean.item(),
+        "kid_std": kid_std.item()
+    }
+
 @click.command()
 @click.option('--model_name', '-m', type=str, default='xs_logen_kitti360_bicycle_gen_split_by_sequence')
 @click.option('--root', '-r', type=str)
@@ -97,8 +105,14 @@ def get_kid(model_name, root, split, object_class, evaluation_model, input_chann
 @click.option('--evaluation_model', '-e', type=str, default='nuscenes')
 @click.option('--input_channels', '-i', type=int, default=3)
 @click.option('--pointnet_checkpoint_path', '-pckpt', type=str)
-def main(model_name, root, split, object_class, evaluation_model, input_channels, pointnet_checkpoint_path):
-    get_kid(model_name, root, split, object_class, evaluation_model, input_channels, pointnet_checkpoint_path)
+@click.option('--silent', '-sl', type=bool, default=False)
+
+def main(model_name, root, split, object_class, evaluation_model, input_channels, pointnet_checkpoint_path, silent):
+    sys.stdout.flush()
+    if silent:
+        builtins.print = lambda *args, **kwargs: None
+    metrics = get_kid(model_name, root, split, object_class, evaluation_model, input_channels, pointnet_checkpoint_path)
+    sys.stdout.write(json.dumps(metrics))
 
 if __name__ == "__main__":
     main()

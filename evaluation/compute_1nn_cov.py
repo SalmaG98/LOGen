@@ -5,6 +5,9 @@ from CD_EMD.paired_dataloader import NuscenesPairedObjectsDataLoader
 from logen.modules.PyTorchEMD.emd import earth_mover_distance as EMD
 # from modules.metrics import ChamferDistance
 import os
+import sys
+import json
+import builtins
 import numpy as np
 import open3d as o3d
 from logen.modules.three_d_helpers import build_two_point_clouds
@@ -212,8 +215,10 @@ def get_1nn_cov(model_name, root, split, object_class, input_channels, distance_
         for kk in results:
             print(f'{kk}: {results[kk]} ', file=f)
 
-    print(f'lgan_cov-CD: {results["lgan_cov-CD"]} ')
-    print(f'1-NN-CD-acc: {results["1-NN-CD-acc"]} ')
+    print(f'lgan_cov: {results[f"lgan_cov-{distance_method}"]} ')
+    print(f'1-NN-CD-acc: {results[f"1-NN-{distance_method}-acc"]} ')
+
+    return results
 
 @click.command()
 @click.option('--model_name', '-m', type=str, default='xs_4_1a_cross_pointnet_impcgf_4chfix_reordered_gen_2')
@@ -222,8 +227,14 @@ def get_1nn_cov(model_name, root, split, object_class, input_channels, distance_
 @click.option('--object_class', '-cls', type=str)
 @click.option('--input_channels', '-i', type=int, default=4)
 @click.option('--distance_method', '-d', type=str, default="CD")
-def main(model_name, root, split, object_class, input_channels, distance_method):
-    get_1nn_cov(model_name, root, split, object_class, input_channels, distance_method)
+@click.option('--silent', '-sl', type=bool, default=False)
+
+def main(model_name, root, split, object_class, input_channels, distance_method, silent):
+    sys.stdout.flush()
+    if silent:
+        builtins.print = lambda *args, **kwargs: None
+    metrics = get_1nn_cov(model_name, root, split, object_class, input_channels, distance_method)
+    sys.stdout.write(json.dumps(metrics))
 
 if __name__ == "__main__":
     main()

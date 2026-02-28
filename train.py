@@ -8,6 +8,7 @@ import torch
 import yaml
 from logen.datasets.dataset_mapper import dataloaders
 from logen.models.diffuser import Diffuser
+from logen.modules.callbacks import GenerationEvalCallback
 
 def set_deterministic():
     np.random.seed(42)
@@ -32,8 +33,14 @@ def set_deterministic():
               type=str,
               help='path to checkpoint file (.ckpt) to resume training.',
               default=None)
+@click.option('--resdir',
+              '-r',
+              type=str,
+              help='path to save generation results in eval callbacks.',
+              default=None)
 @click.option('--test', '-t', is_flag=True, help='test mode')
-def main(config, weights, checkpoint, test):
+
+def main(config, weights, checkpoint, resdir, test):
     if not test:
         set_deterministic()
 
@@ -55,11 +62,44 @@ def main(config, weights, checkpoint, test):
 
     #Add callbacks
     lr_monitor = LearningRateMonitor(logging_interval='step')
-    checkpoint_saver = ModelCheckpoint(
-                                dirpath='checkpoints/'+cfg['experiment']['id'],
-                                filename=cfg['experiment']['id']+'_{epoch:02d}',
-                                save_last=True,
+    periodic_checkpoint_saver = ModelCheckpoint(
+                                dirpath=f'{resdir}/checkpoints/'+cfg['experiment']['id'],
+                                filename='{epoch:d}',
+                                save_last=True, 
+                                every_n_epochs=25, 
+                                enable_version_counter=False, #new run checkpoint epoch=$epoch-last.ckpt overwites the previous one
+                                save_top_k=-1        # creates last.ckpt
                             )
+    
+    best_checkpoint_saver = ModelCheckpoint(
+                                dirpath=f'{resdir}/checkpoints/'+cfg['experiment']['id'],
+                                filename='best',
+                                monitor='val/jsd_mean',
+                                save_top_k=1,          # keep only best
+                                mode='min',            # or 'max' depending on metric
+                                # save_last=True        # creates last.ckpt
+                            )
+
+    periodic_checkpoint_saver.CHECKPOINT_NAME_LAST = "{epoch}-last"
+    
+    model_type = 'map' if cfg['model']['map_shape_to_one'] else 'no_map'
+
+    gen_eval_cb = GenerationEvalCallback(
+        project_root='./',
+        gen_args=[
+            model_type
+        ],
+        eval_scripts_dir='scripts/',
+        eval_args={
+            "evaluate_cd_emd_logen.sh": [model_type, '3'],
+            "evaluate_fid_gens.sh": [model_type, '3'],
+            "evaluate_jsd_gens.sh": [model_type, '3'],
+            "evaluate_kid_gens.sh": [model_type, '3'],
+            "evaluate_nn_cov_logen.sh": [model_type, '3'],
+            "evaluate_pointnet_acc_gens.sh": [model_type, '3'],
+        },
+        run_every_epochs=50,
+    )
 
     tb_logger = pl_loggers.TensorBoardLogger('experiments/'+cfg['experiment']['id'],
                                              default_hp_metric=False)
@@ -71,7 +111,10 @@ def main(config, weights, checkpoint, test):
                         logger=tb_logger,
                         log_every_n_steps=100,
                         max_epochs= cfg['train']['max_epoch'],
-                        callbacks=[lr_monitor, checkpoint_saver],
+                        callbacks=[lr_monitor, 
+                                   periodic_checkpoint_saver, 
+                                   best_checkpoint_saver,
+                                   gen_eval_cb],
                         check_val_every_n_epoch=5,
                         num_sanity_val_steps=2,
                         limit_val_batches=2,
@@ -85,7 +128,10 @@ def main(config, weights, checkpoint, test):
                         logger=tb_logger,
                         log_every_n_steps=100,
                         max_epochs= cfg['train']['max_epoch'],
-                        callbacks=[lr_monitor, checkpoint_saver],
+                        callbacks=[lr_monitor, 
+                                   periodic_checkpoint_saver, 
+                                   best_checkpoint_saver,
+                                   gen_eval_cb],                        
                         check_val_every_n_epoch=10,
                         num_sanity_val_steps=2,
                         limit_val_batches=2,
