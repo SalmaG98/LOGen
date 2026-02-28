@@ -20,7 +20,7 @@ def pc_normalize_axiswise(pc):
 class NuscenesPairedObjectsDataLoader(Dataset):
     def __init__(self, root, split, input_channels, object_class):
         super().__init__()
-        paths = glob.glob(f'{root}/*/{object_class}/**')
+        paths = glob.glob(f'{root}/{object_class}/**')
         self.input_channels = input_channels
         self.dirs = paths
 

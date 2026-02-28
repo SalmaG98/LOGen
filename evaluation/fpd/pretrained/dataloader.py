@@ -22,12 +22,12 @@ def pc_normalize_axiswise(pc):
 class NuscenesGeneratedObjectsDataLoader(Dataset):
     def __init__(self, root, split, real_or_generated, num_points, input_channels, object_class, logen=True, multiclass_logen=False):
         super().__init__()
-        paths = glob.glob(f'{root}/*/{object_class}/**')
-        print(f'{root}/*/{object_class}/**')
+        paths = glob.glob(f'{root}/{object_class}/**')
+        print(f'{root}/{object_class}/**')
         self.object_name = 'generated_0' if real_or_generated=='generated' else 'original_0'
         self.npoints = num_points
         self.input_channels = input_channels
-        self.dirs = [path for path in paths if path.split('/')[-3] in self.split_mapping]
+        self.dirs = [path for path in paths if path.split('/')[-3]]
 
     def __len__(self):
         return len(self.dirs)
