@@ -187,3 +187,7 @@ cython_debug/
 .cursorignore
 .cursorindexingignorecheckpoints
 checkpoints/
+results/
+.vscode/
+experiments/
+evaluation/evaluation
