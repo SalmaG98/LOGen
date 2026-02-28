@@ -1,11 +1,11 @@
 import click
 import torch
-from evaluation.CD_EMD.paired_dataloader import NuscenesPairedObjectsDataLoader
+from CD_EMD.paired_dataloader import NuscenesPairedObjectsDataLoader
 import os
 import scipy
 import scipy.spatial
 import numpy as np
-from evaluation.CD_EMD.CD_EMD import calculate_cd_emd
+from CD_EMD.CD_EMD import calculate_cd_emd
 
 class JSD():
     def __init__(self):

@@ -1,9 +1,9 @@
 import click
 import torch
-from evaluation.fpd.pretrained.pointnet import PointNetCls
-from evaluation.fpd.from_scratch.pointnet_cls import Pointnet as NSPointnet
-from evaluation.fpd.from_scratch.nuscenes_fpd_dataloader import num_classes
-from evaluation.fpd.pretrained.dataloader import NuscenesGeneratedObjectsDataLoader
+from fpd.pretrained.pointnet import PointNetCls
+from fpd.from_scratch.pointnet_cls import Pointnet as NSPointnet
+from fpd.from_scratch.nuscenes_fpd_dataloader import num_classes
+from fpd.pretrained.dataloader import NuscenesGeneratedObjectsDataLoader
 from torchmetrics.image.fid import FrechetInceptionDistance
 import os
 try:

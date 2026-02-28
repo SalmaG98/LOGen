@@ -3,7 +3,7 @@ import pathlib
 import numpy as np
 import torch
 from torch import Tensor
-from modules.three_d_helpers import build_two_point_clouds
+from logen.modules.three_d_helpers import build_two_point_clouds
 
 try:
     from tqdm import tqdm

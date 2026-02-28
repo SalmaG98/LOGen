@@ -1,7 +1,7 @@
 import click
 import torch
-from evaluation.CD_EMD.paired_dataloader import NuscenesPairedObjectsDataLoader
-from evaluation.CD_EMD.CD_EMD import calculate_cd_emd
+from CD_EMD.paired_dataloader import NuscenesPairedObjectsDataLoader
+from CD_EMD.CD_EMD import calculate_cd_emd
 from logen.modules.metrics import ChamferDistance, EMD
 import os
 

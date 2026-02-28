@@ -1,6 +1,6 @@
 import click
 import torch
-from evaluation.CD_EMD.paired_dataloader import NuscenesPairedObjectsDataLoader
+from CD_EMD.paired_dataloader import NuscenesPairedObjectsDataLoader
 # from modules.metrics import EMD
 from logen.modules.PyTorchEMD.emd import earth_mover_distance as EMD
 # from modules.metrics import ChamferDistance
