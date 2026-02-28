@@ -1,5 +1,6 @@
 class_mapping = {
   'human.pedestrian.adult':0,
+  'human':0,
   'human.pedestrian.child':0,
   'human.pedestrian.construction_worker':0,
   'human.pedestrian.personal_mobility':0,

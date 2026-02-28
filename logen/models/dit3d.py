@@ -122,7 +122,7 @@ class ConditionEmbedder(nn.Module):
     """
     Embeds conditions into fourier features.
     """
-    def __init__(self, hidden_size, uncond_prob, num_conditions, num_cyclic_conditions, frequency_embedding_size=256):
+    def __init__(self, hidden_size, uncond_prob, num_conditions, num_cyclic_conditions, num_linear_conditions, map_shape_to_one, frequency_embedding_size=256):
         super().__init__()
         self.mlp = nn.Sequential(
             nn.Linear(frequency_embedding_size, hidden_size, bias=True),
@@ -131,6 +131,18 @@ class ConditionEmbedder(nn.Module):
         )
         self.frequency_embedding_size = frequency_embedding_size
         self.num_cyclic_conditions = num_cyclic_conditions
+        self.num_linear_conditions = num_linear_conditions
+        self.map_shape_to_one = map_shape_to_one
+        if self.num_linear_conditions > 0:
+            if map_shape_to_one:
+                first_linear_size = num_linear_conditions
+            else:
+                first_linear_size = 1
+            self.mlp_lin_emb = nn.Sequential(
+                nn.Linear(first_linear_size, hidden_size, bias=True),
+                nn.SiLU(),
+                nn.Linear(hidden_size, frequency_embedding_size, bias=True),
+            )
         self.register_buffer("y_embedding", nn.Parameter(torch.randn(num_conditions, hidden_size) / hidden_size ** 0.5))
         self.uncond_prob = uncond_prob
 
@@ -172,10 +184,30 @@ class ConditionEmbedder(nn.Module):
             emb = nn.functional.pad(emb, (0, 1), "constant", 0)
         return emb
 
+    def linear_embedding(self, condition):
+        if self.map_shape_to_one:
+            emb = self.mlp_lin_emb(condition)
+            return emb.unsqueeze(1)
+        else:
+            emb = self.mlp_lin_emb(condition.unsqueeze(-1))
+            return emb
+
     def forward(self, c, train, force_drop_ids=None):
         c_freq_cyc = self.cyclic_embedding(c[:, :self.num_cyclic_conditions], self.frequency_embedding_size)
-        c_freq_pos = self.positional_embedding(c[:, self.num_cyclic_conditions:], self.frequency_embedding_size)
-        c_freq = torch.concat((c_freq_cyc, c_freq_pos), 1)
+        if self.num_linear_conditions > 0:
+            # print(f'c_freq_cyc.shape: {c_freq_cyc.shape}')
+            c_freq_pos = self.positional_embedding(c[:, self.num_cyclic_conditions:-self.num_linear_conditions], self.frequency_embedding_size)
+            # print(f'c_freq_pos.shape: {c_freq_pos.shape}')
+            c_freq_lin = self.linear_embedding(c[:, -self.num_linear_conditions:])
+            # print(f'c_freq_lin.shape: {c_freq_lin.shape}')
+            c_freq = torch.concat((c_freq_cyc, c_freq_pos, c_freq_lin), 1) #SG: remove the shape params from positional embedding and map them using a linear layer
+            # print(f'c_freq.shape: {c_freq.shape}')
+        else:
+            # print(f'c_freq_cyc.shape: {c_freq_cyc.shape}')
+            c_freq_pos = self.positional_embedding(c[:, self.num_cyclic_conditions:], self.frequency_embedding_size)
+            # print(f'c_freq_pos.shape: {c_freq_pos.shape}')
+            c_freq = torch.concat((c_freq_cyc, c_freq_pos), 1) #SG: remove the shape params from positional embedding and map them using a linear layer
+            # print(f'c_freq.shape: {c_freq.shape}')
         c_emb = self.mlp(c_freq)
         use_dropout = self.uncond_prob > 0
         if (train and use_dropout) or (force_drop_ids):
@@ -248,6 +280,8 @@ class DiT(nn.Module):
         num_classes=1,
         learn_sigma=False,
         num_cyclic_conditions=1,
+        num_linear_conditions=10,
+        map_shape_to_one=False,
         num_total_conditions=6,
     ):
         super().__init__()
@@ -267,7 +301,7 @@ class DiT(nn.Module):
         self.t_embedder = TimestepEmbedder(hidden_size)
         if self.num_classes > 1:
             self.y_embedder = LabelEmbedder(num_classes, hidden_size, class_dropout_prob)
-        self.c_embedder = ConditionEmbedder(hidden_size, class_dropout_prob, num_conditions=num_total_conditions, num_cyclic_conditions=num_cyclic_conditions)
+        self.c_embedder = ConditionEmbedder(hidden_size, class_dropout_prob, num_conditions=num_total_conditions, num_cyclic_conditions=num_cyclic_conditions, num_linear_conditions=num_linear_conditions, map_shape_to_one=map_shape_to_one)
 
         # Will use fixed sin-cos embedding:
         self.pos_embed = nn.Parameter(torch.zeros(1, num_patches, hidden_size), requires_grad=False)

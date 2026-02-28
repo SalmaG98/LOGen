@@ -74,9 +74,12 @@ class Diffuser(LightningModule):
         point_embeddings = self.hparams['model']['embeddings']
         model_size = self.hparams['model']['size']
         num_classes = self.hparams['model']['num_classes']
+        num_total_conditions =  self.hparams['model']['num_conditions']
         num_cyclic_conditions =  self.hparams['model']['cyclic_conditions']
+        num_linear_conditions =  self.hparams['model']['linear_conditions']
+        map_shape_to_one =  self.hparams['model']['map_shape_to_one']
         self.in_channels = self.hparams['model']['in_channels']
-        self.model = self.model_factory(conditioning_type, point_embeddings, model_size, num_cyclic_conditions, num_classes, self.in_channels)
+        self.model = self.model_factory(conditioning_type, point_embeddings, model_size, num_cyclic_conditions, num_linear_conditions, map_shape_to_one, num_classes, self.in_channels, num_total_conditions)
         self.chamfer_distance = ChamferDistance()
         self.emd = EMD()
         self.rmse = RMSE()
@@ -85,14 +88,14 @@ class Diffuser(LightningModule):
         self.w_uncond = self.hparams['train']['uncond_w']
         self.visualize = self.hparams['diff']['visualize']
 
-    def model_factory(self, conditioning_type, point_embeddings, model_size, num_cyclic_conditions, num_classes, in_channels):
+    def model_factory(self, conditioning_type, point_embeddings, model_size, num_cyclic_conditions, num_linear_conditions, map_shape_to_one, num_classes, in_channels, num_total_conditions):
         factory = None
         if conditioning_type == 'logen':
             factory = LOGen_models
         elif conditioning_type == 'dit3d':
             factory = DiT3D_models
         model = factory[model_size]
-        return model(num_classes=num_classes, in_channels=in_channels, num_cyclic_conditions=num_cyclic_conditions)
+        return model(num_classes=num_classes, in_channels=in_channels, num_cyclic_conditions=num_cyclic_conditions, num_linear_conditions=num_linear_conditions, map_shape_to_one=map_shape_to_one, num_total_conditions=num_total_conditions)
 
     def scheduler_to_cuda(self):
         self.dpm_scheduler.timesteps = self.dpm_scheduler.timesteps.cuda()
@@ -224,8 +227,8 @@ class Diffuser(LightningModule):
             
             for pcd_index in range(batch['num_points'].shape[0]):
                 mask = padding_mask[pcd_index].int() == True
-                object_pcd = x_object[pcd_index].squeeze(0)[mask]
-                genrtd_pcd = x_gen_eval[pcd_index].squeeze(0)[mask]
+                object_pcd = x_object[pcd_index][mask]
+                genrtd_pcd = x_gen_eval[pcd_index][mask]
                 
                 object_points = object_pcd[:, :3]
                 genrtd_points = genrtd_pcd[:, :3]
