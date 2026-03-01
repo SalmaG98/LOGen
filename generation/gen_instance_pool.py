@@ -5,6 +5,7 @@ import click
 import yaml
 import torch
 import numpy as np
+import open3d as o3d
 import torch.distributed as dist
 from tqdm import tqdm
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -203,9 +204,15 @@ def gen(rank, world_size, cfg, weights, num_instances, split, rootdir, batch_siz
                     condition_data = np.concatenate((center, size, orientation))
 
                 class_name = cfg['data']['gen_class_name']
-                sample_dir = os.path.join(rootdir, cfg['experiment']['id'], sample_token, class_name, token)
+                sample_dir = os.path.join(rootdir, cfg['experiment']['id'], epoch, class_name, token)
                 os.makedirs(sample_dir, exist_ok=True)
                 idx = i // batch_size
+                pcd_gen = o3d.geometry.PointCloud()
+                pcd_org = o3d.geometry.PointCloud()
+                pcd_gen.points = o3d.utility.Vector3dVector(x_gen_realigned)
+                pcd_org.points = o3d.utility.Vector3dVector(x_org_realigned)
+                o3d.io.write_point_cloud(f'{sample_dir}/generated_{idx}.pcd', pcd_gen)
+                o3d.io.write_point_cloud(f'{sample_dir}/original_{idx}.pcd', pcd_org)
                 np.savetxt(os.path.join(sample_dir, f'generated_{idx}.txt'), x_gen_realigned)
                 np.savetxt(os.path.join(sample_dir, f'original_{idx}.txt'), x_org_realigned)
                 np.savetxt(os.path.join(sample_dir, f'conditions_{idx}.txt'), condition_data)
