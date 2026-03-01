@@ -23,17 +23,17 @@ def inverse_scale_intensity(scaled_data):
     return np.round(np.clip(np.expm1(data_log_transformed), a_min=0.0, a_max=255.0))
 
 def realign_pointclouds_to_scan(points, orientation, center, aligned_angle):
-    cos_yaw, sin_yaw = np.cos(orientation), np.sin(orientation)
-    rotation_matrix = np.array([
-        [cos_yaw, -sin_yaw, 0],
-        [sin_yaw, cos_yaw, 0],
-        [0, 0, 1]
-    ])
-    points[:, :3] = np.dot(points[:, :3], rotation_matrix.T)
+    # cos_yaw, sin_yaw = np.cos(orientation), np.sin(orientation)
+    # rotation_matrix = np.array([
+    #     [cos_yaw, -sin_yaw, 0],
+    #     [sin_yaw, cos_yaw, 0],
+    #     [0, 0, 1]
+    # ])
+    # points[:, :3] = np.dot(points[:, :3], rotation_matrix.T)
     new_center = center.copy()
-    new_center[0] = angle_add(aligned_angle, orientation)
+    # new_center[0] = angle_add(aligned_angle, orientation)
     new_center = cylindrical_to_cartesian(new_center[None, :]).squeeze(0)
-    points[:, :3] += new_center
+    # points[:, :3] += new_center
     if points.shape[1] > 3:
         points[:, 3] = inverse_scale_intensity(points[:, 3])
     return points
