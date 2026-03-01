@@ -18,6 +18,14 @@ from logen.models.diffuser import Diffuser
 from logen.datasets.dataset_mapper import dataloaders
 from logen.modules.three_d_helpers import cylindrical_to_cartesian, angle_add, estimate_lidar_points_batched
 
+def set_deterministic(rank=0):
+    seed = 42 + rank
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+
+
 def inverse_scale_intensity(scaled_data):
     max_intensity = np.log1p(255.0)
     data_log_transformed = scaled_data * max_intensity
@@ -73,6 +81,9 @@ def main(config, weights, num_instances, split, rootdir, token_to_data, consiste
         gen(0, world_size, cfg, weights, num_instances, split, rootdir, cfg['train']['batch_size'], token_to_data, consistent_seed, existing_tokens, permutation_file, limit_samples_count, condition)
 
 def gen(rank, world_size, cfg, weights, num_instances, split, rootdir, batch_size, token_to_data, consistent_seed, existing_tokens, permutation_file, limit_samples_count, condition):
+    if consistent_seed:
+        set_deterministic(rank)
+    
     epoch = weights.split('/')[-1].split('.ckpt')[0].split('-')[0].replace('=','_')
     
     os.environ['MASTER_ADDR'] = 'localhost'
@@ -95,7 +106,7 @@ def gen(rank, world_size, cfg, weights, num_instances, split, rootdir, batch_siz
     permutation = []
 
     dataset_builder = dataloaders[cfg['data']['dataloader']](cfg)
-    dataset, collate = dataset_builder.build_dataset(split, existing_tokens, permutation)
+    dataset, collate = dataset_builder.build_dataset(split, existing_tokens, permutation, n_samples=limit_samples_count)
     sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank)
     dataloader = DataLoader(dataset, batch_size=batch_size, sampler=sampler, num_workers=cfg['train']['num_workers'], collate_fn=collate)
 
