@@ -54,7 +54,7 @@ def generate_new_distances(D_0, num_instances, min_factor=0.5, max_factor=2.0, s
 @click.option('--num_instances', '-n', type=int, default=4)
 @click.option('--split', '-s', type=str, default='train')
 @click.option('--rootdir', '-r', type=str, required=True)
-@click.option('--token_to_data', type=str, required=True)
+@click.option('--token_to_data', type=str, required=False, default=None)
 @click.option('--consistent_seed', type=bool, default=True)
 @click.option('--permutation_file', type=str, default=None)
 @click.option('--limit_samples_count', type=int, default=-1)
@@ -82,8 +82,10 @@ def gen(rank, world_size, cfg, weights, num_instances, split, rootdir, batch_siz
     torch.cuda.set_device(rank)
     device = torch.device(f'cuda:{rank}')
 
-    with open(token_to_data, 'r') as f:
-        token_to_data_map = json.load(f)[split]
+    if token_to_data is not None:
+        with open(token_to_data, 'r') as f:
+            token_to_data_map = json.load(f)[split]
+
 
     model = Diffuser.load_from_checkpoint(weights, hparams=cfg, strict=False).to(device)
     model = DDP(model, device_ids=[rank])
@@ -164,10 +166,12 @@ def gen(rank, world_size, cfg, weights, num_instances, split, rootdir, batch_siz
             for i in range(x_gen.shape[0]):
                 example_index = i % batch_size
                 token = annotation_tokens[example_index]
-                sample_data = token_to_data_map[token]
+                if token_to_data is not None:
+                    sample_data = token_to_data_map[token]
 
                 center = x_center[example_index].cpu().numpy()
-                orientation = x_orientation[example_index].cpu().numpy().item()
+                size = x_size[example_index].cpu().numpy()
+                orientation = x_orientation[example_index].cpu().numpy()
                 gen_mask = padding_mask[i].cpu().bool().numpy()
 
                 if condition == "recreation":
@@ -184,16 +188,19 @@ def gen(rank, world_size, cfg, weights, num_instances, split, rootdir, batch_siz
                     center_copy[1] = x_cond[i][1]
                     x_gen_realigned = realign_pointclouds_to_scan(x_gen[i][gen_mask], orientation, center_copy, center[0])
 
-                if 'rotation_real' in sample_data:
-                    rotation_real = np.array([sample_data['rotation_real']])
-                    rotation_imag = np.array(sample_data['rotation_imaginary'])
-                    yaw = Quaternion(real=rotation_real, imaginary=rotation_imag).yaw_pitch_roll[0]
-                    condition_data = np.concatenate((center, sample_data['size'], [yaw], rotation_real, rotation_imag))
-                    sample_token = sample_data['sample_token']
+                if token_to_data is not None:
+                    if 'rotation_real' in sample_data:
+                        rotation_real = np.array([sample_data['rotation_real']])
+                        rotation_imag = np.array(sample_data['rotation_imaginary'])
+                        yaw = Quaternion(real=rotation_real, imaginary=rotation_imag).yaw_pitch_roll[0]
+                        condition_data = np.concatenate((center, sample_data['size'], [yaw], rotation_real, rotation_imag))
+                        sample_token = sample_data['sample_token']
+                    else:
+                        yaw = sample_data['rotation_yaw']
+                        condition_data = np.concatenate((center, sample_data['size'], [yaw]))
+                        sample_token = os.path.basename(sample_data['pointcloud_path'])[:-4]
                 else:
-                    yaw = sample_data['rotation_yaw']
-                    condition_data = np.concatenate((center, sample_data['size'], [yaw]))
-                    sample_token = os.path.basename(sample_data['pointcloud_path'])[:-4]
+                    condition_data = np.concatenate((center, size, orientation))
 
                 class_name = cfg['data']['gen_class_name']
                 sample_dir = os.path.join(rootdir, cfg['experiment']['id'], sample_token, class_name, token)
