@@ -119,7 +119,7 @@ def main(config, weights, checkpoint, resdir, test):
                         num_sanity_val_steps=2,
                         limit_val_batches=2,
                         accelerator='gpu',
-                        strategy="ddp",
+                        strategy="ddp_find_unused_parameters_true"
                         )
     else:
         trainer = Trainer(
