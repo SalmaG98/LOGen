@@ -1,48 +1,25 @@
-# !/bin/bash
+#!/bin/bash
+cd ~/workspace/LOGen/logen/modules/PyTorchEMD
+pip install numpy==1.26.4
+pip install .
+cd ~/workspace/LOGen
+pip install -e .
 
 cd evaluation
 
+export CUDA_VISIBLE_DEVICES=3
+
+model_type=$1
+channels=$2
+epoch=$3 # epoch_$n or last
+silent=$4
+
 eval_model=nuscenes
 split=val
-root_dir=augmented_nuscenes_datasets
-channels=3
+root_dir=/home/sgalaaou/scania/sgalaaou/LOGen_human_experiments_mgpus/results
 
-# Compute BIKES
-model=xs_1a_logen_bikes_cleaned_gen_999
-python compute_cd_emd.py -m $model -s $split -i $channels -r $root_dir  -cls bike
+# Compute HUMAN
+model=gen_sloper4d_$model_type
+python compute_cd_emd.py -m $model/$epoch -r $root_dir -s $split -cls human -i $channels -sl $silent
 
-# Compute BARRIERS
-model=xs_1a_logen_barriers_gen_999
-python compute_cd_emd.py -m $model -s $split -i $channels -r $root_dir -cls barrier
-
-# Compute BUS
-model=xs_1a_logen_bus_gen_999
-python compute_cd_emd.py -m $model -s $split -i $channels -r $root_dir -cls bus
-
-# Compute MOTORCYCLE
-model=xs_1a_logen_motorcycles_gen_999
-python compute_cd_emd.py -m $model -s $split -i $channels -r $root_dir -cls motorcycle
-
-# Compute PEDESTRIAN
-model=xs_1a_logen_pedestrian_gen_999
-python compute_cd_emd.py -m $model -s $split -i $channels -r $root_dir -cls pedestrian
-
-# Compute TRAFFIC CONE
-model=xs_1a_logen_traffic_cones_gen_999
-python compute_cd_emd.py -m $model -s $split -i $channels -r $root_dir -cls traffic_cone
-
-# Compute TRUCKS
-model=xs_1a_logen_trucks_gen_999
-python compute_cd_emd.py -m $model -s $split -i $channels -r $root_dir -cls truck
-
-# Compute CAR
-model=xs_1a_logen_cars_gen_999
-python compute_cd_emd.py -m $model -s $split -i $channels -r $root_dir -cls car
-
-# Compute CONSTRUCTION VEHICLE
-model=xs_1a_logen_construction_vehicles_gen_999
-python compute_cd_emd.py -m $model -s $split -i $channels -r $root_dir -cls construction_vehicle
-
-# Compute TRAILER
-model=xs_1a_logen_trailers_gen_999
-python compute_cd_emd.py -m $model -s $split -i $channels -r $root_dir -cls trailer
+cd ../
