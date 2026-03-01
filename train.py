@@ -1,3 +1,4 @@
+import os
 import click
 from os.path import join, dirname, abspath
 from pytorch_lightning import Trainer
@@ -15,6 +16,11 @@ def set_deterministic():
     torch.manual_seed(42)
     torch.cuda.manual_seed(42)
     torch.backends.cudnn.deterministic = True
+
+def configure_cuda(ngpus=1):
+    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+    # ngpus-1 to leave out one gpus fully reserved for generation eval callback
+    os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, range(ngpus-1)))
 
 @click.command()
 ### Add your options here
@@ -46,6 +52,9 @@ def main(config, weights, checkpoint, resdir, test):
 
     cfg = yaml.safe_load(open(config))
 
+    configure_cuda(cfg['train']['n_gpus'])
+    cfg['train']['n_gpus']-=1
+    
     #Load data and model
     if weights is None:
         model = Diffuser(cfg)
@@ -105,7 +114,7 @@ def main(config, weights, checkpoint, resdir, test):
                                              default_hp_metric=False)
     #Setup trainer
     if torch.cuda.device_count() > 1:
-        cfg['train']['n_gpus'] = torch.cuda.device_count()
+        # cfg['train']['n_gpus'] = torch.cuda.device_count()
         trainer = Trainer(
                         devices=cfg['train']['n_gpus'],
                         logger=tb_logger,

@@ -1,4 +1,6 @@
 import os
+# os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import glob
 import json
 import click
@@ -25,6 +27,10 @@ def set_deterministic(rank=0):
     torch.cuda.manual_seed(seed)
     torch.backends.cudnn.deterministic = True
 
+# def configure_cuda(ngpus):
+#     # SG: TO BE UPDATED!!
+#     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+#     os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 
 def inverse_scale_intensity(scaled_data):
     max_intensity = np.log1p(255.0)
@@ -71,6 +77,7 @@ def generate_new_distances(D_0, num_instances, min_factor=0.5, max_factor=2.0, s
 def main(config, weights, num_instances, split, rootdir, token_to_data, consistent_seed, permutation_file, limit_samples_count, condition):
     cfg = yaml.safe_load(open(config))
     world_size = cfg['train']['n_gpus']
+    # configure_cuda(world_size)
     experiment_dir = cfg['experiment']['id']
     existing_paths = glob.glob(f'{rootdir}/{experiment_dir}/*/{cfg["data"]["gen_class_name"]}/**/original_0.txt')
     existing_tokens = set(path.split('/')[-2] for path in existing_paths)
