@@ -1,11 +1,12 @@
 #!/bin/bash
+export TORCH_EXTENSIONS_DIR=/tmp/torch_ext_$RANDOM
 cd ~/workspace/LOGen/logen/modules/PyTorchEMD
-pip install numpy==1.26.4 > /dev/null
-pip install . > /dev/null
+pip install numpy==1.26.4
+pip install . --no-cache-dir
 cd ~/workspace/LOGen
-pip install -e . > /dev/null
+pip install -e .
 cd ~/workspace/LOGen/pytorch3d
-pip install -e . > /dev/null
+pip install -e .
 cd ~/workspace/LOGen
 
 cd evaluation

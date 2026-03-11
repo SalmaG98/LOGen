@@ -1,7 +1,8 @@
 #!/bin/bash
+export TORCH_EXTENSIONS_DIR=/tmp/torch_ext_$RANDOM
 cd ~/workspace/LOGen/logen/modules/PyTorchEMD
 pip install numpy==1.26.4
-pip install .
+pip install . --no-cache-dir
 cd ~/workspace/LOGen
 pip install -e .
 
