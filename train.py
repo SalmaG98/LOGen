@@ -39,6 +39,10 @@ def configure_cuda(ngpus=1):
               type=str,
               help='path to checkpoint file (.ckpt) to resume training.',
               default=None)
+@click.option('--eval_gen_callback',
+              '-cb', 
+              is_flag=True,
+              help='whether to use callback for evaluation and generation during training. If enabled, the last gpu will be reserved for this callback and not used for training.')
 @click.option('--resdir',
               '-r',
               type=str,
@@ -46,14 +50,18 @@ def configure_cuda(ngpus=1):
               default=None)
 @click.option('--test', '-t', is_flag=True, help='test mode')
 
-def main(config, weights, checkpoint, resdir, test):
+def main(config, weights, checkpoint, resdir, test, eval_gen_callback):
     if not test:
         set_deterministic()
 
     cfg = yaml.safe_load(open(config))
 
     configure_cuda(cfg['train']['n_gpus'])
-    cfg['train']['n_gpus']-=1
+
+    #SG(BUG): for now disabling gen_eval callback as it causes some issues with distributed training. Will fix this in the future and enable it by default.
+    if eval_gen_callback and cfg['train']['n_gpus'] > 1:
+        gen_eval_gpu_id = cfg['train']['n_gpus'] - 1 # provide the last gpu id (0 indexed) to the gen_eval callback
+        cfg['train']['n_gpus'] -= 1
     
     #Load data and model
     if weights is None:
@@ -96,19 +104,25 @@ def main(config, weights, checkpoint, resdir, test):
     gen_eval_cb = GenerationEvalCallback(
         project_root='./',
         gen_args=[
+            str(gen_eval_gpu_id),
             model_type
         ],
         eval_scripts_dir='scripts/',
         eval_args={
-            "evaluate_cd_emd_logen.sh": [model_type, '3'],
-            "evaluate_fid_gens.sh": [model_type, '3'],
-            "evaluate_jsd_gens.sh": [model_type, '3'],
-            "evaluate_kid_gens.sh": [model_type, '3'],
-            "evaluate_nn_cov_logen.sh": [model_type, '3'],
-            "evaluate_pointnet_acc_gens.sh": [model_type, '3'],
+            "evaluate_cd_emd_logen.sh": [str(gen_eval_gpu_id), model_type, '3'],
+            "evaluate_fid_gens.sh": [str(gen_eval_gpu_id), model_type, '3'],
+            "evaluate_jsd_gens.sh": [str(gen_eval_gpu_id), model_type, '3'],
+            "evaluate_kid_gens.sh": [str(gen_eval_gpu_id), model_type, '3'],
+            "evaluate_nn_cov_logen.sh": [str(gen_eval_gpu_id), model_type, '3'],
+            "evaluate_pointnet_acc_gens.sh": [str(gen_eval_gpu_id), model_type, '3'],
         },
         run_every_epochs=50,
     )
+
+    if eval_gen_callback:
+        callbacks = [lr_monitor, periodic_checkpoint_saver, best_checkpoint_saver, gen_eval_cb]
+    else:
+        callbacks = [lr_monitor, periodic_checkpoint_saver, best_checkpoint_saver]
 
     tb_logger = pl_loggers.TensorBoardLogger('experiments/'+cfg['experiment']['id'],
                                              default_hp_metric=False)
@@ -120,10 +134,7 @@ def main(config, weights, checkpoint, resdir, test):
                         logger=tb_logger,
                         log_every_n_steps=100,
                         max_epochs= cfg['train']['max_epoch'],
-                        callbacks=[lr_monitor, 
-                                   periodic_checkpoint_saver, 
-                                   best_checkpoint_saver,
-                                   gen_eval_cb],
+                        callbacks=callbacks,
                         check_val_every_n_epoch=5,
                         num_sanity_val_steps=2,
                         limit_val_batches=2,
@@ -137,10 +148,7 @@ def main(config, weights, checkpoint, resdir, test):
                         logger=tb_logger,
                         log_every_n_steps=100,
                         max_epochs= cfg['train']['max_epoch'],
-                        callbacks=[lr_monitor, 
-                                   periodic_checkpoint_saver, 
-                                   best_checkpoint_saver,
-                                   gen_eval_cb],                        
+                        callbacks=callbacks,                        
                         check_val_every_n_epoch=10,
                         num_sanity_val_steps=2,
                         limit_val_batches=2,

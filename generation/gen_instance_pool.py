@@ -27,10 +27,10 @@ def set_deterministic(rank=0):
     torch.cuda.manual_seed(seed)
     torch.backends.cudnn.deterministic = True
 
-# def configure_cuda(ngpus):
-#     # SG: TO BE UPDATED!!
-#     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-#     os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+def configure_cuda(ngpus):
+    # SG: TO BE UPDATED!!
+    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+    os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, range(ngpus)))
 
 def inverse_scale_intensity(scaled_data):
     max_intensity = np.log1p(255.0)
@@ -88,6 +88,7 @@ def main(config, weights, num_instances, split, rootdir, token_to_data, consiste
         gen(0, world_size, cfg, weights, num_instances, split, rootdir, cfg['train']['batch_size'], token_to_data, consistent_seed, existing_tokens, permutation_file, limit_samples_count, condition)
 
 def gen(rank, world_size, cfg, weights, num_instances, split, rootdir, batch_size, token_to_data, consistent_seed, existing_tokens, permutation_file, limit_samples_count, condition):
+    #SG(BUG): suspicion that rank might always be zero even if gen.sh sets CUDA_VISIBLE_DEVICES to something else here device = torch.device(f'cuda:{rank}') rank might be 0 
     if consistent_seed:
         set_deterministic(rank)
     
