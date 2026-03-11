@@ -90,7 +90,7 @@ def get_kid(model_name, root, split, object_class, evaluation_model, input_chann
     print('Kernel Pointcloud Distance <<< {:.10f} {:.10f} >>>'.format(kid_mean,kid_std))
     os.makedirs(f'./evaluation/kid/experiments_distance_gens_05x_{input_channels}ch/{model_name}', exist_ok=True)
     with open(f'./evaluation/kid/experiments_distance_gens_05x_{input_channels}ch/{model_name}/kid_{evaluation_model}_{split}_{object_class}.txt', 'w') as f:
-        print('Kernel Pointcloud Distance <<< {:.10f} >>>'.format(kid_mean), file=f)
+        print('Kernel Pointcloud Distance <<< {:.10f} {:.10f} >>>'.format(kid_mean,kid_std), file=f)
 
     return {
         "kid_mean": kid_mean.item(),

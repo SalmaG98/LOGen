@@ -52,7 +52,10 @@ def get_jsd(model_name, root, split, object_class, input_channels):
     # jsd_score = jsd.compute()
 
     print('JSD mean <<< {:.10f} >>> and std <<< {:.10f} >>> '.format(jsd_score[0], jsd_score[1]))
-    
+    os.makedirs(f'./evaluation/jsd/experiments_distance_gens_05x_{input_channels}ch/{model_name}', exist_ok=True)
+    with open(f'./evaluation/jsd/experiments_distance_gens_05x_{input_channels}ch/{model_name}/jsd_{split}_{object_class}.txt', 'w') as f:
+        print('JSD mean <<< {:.10f} >>> and std <<< {:.10f} >>> '.format(jsd_score[0], jsd_score[1]), file=f)    
+        
     return {
         "jsd_mean": jsd_score[0].item(),
         "jsd_std": jsd_score[1].item()
