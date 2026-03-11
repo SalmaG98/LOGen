@@ -8,12 +8,19 @@ pip install -e .
 
 cd evaluation
 
-export CUDA_VISIBLE_DEVICES=3
-
-model_type=$1 # xs_1a_dit3d_pe_4ch
-channels=$2
-epoch=$3 # epoch_$n or last
-silent=$4
+if [ "$#" -eq 4 ]; then # script received model_name and gpu_id only
+    gpu_id=0
+    model_type=$1
+    channels=$2
+    epoch=$3
+    silent=$4
+elif [ "$#" -eq 5 ]; then
+    gpu_id=$1
+    model_type=$2
+    channels=$3
+    epoch=$4
+    silent=$5
+fi
 
 eval_model=nuscenes
 split=val
@@ -34,6 +41,6 @@ fi
 
 # Compute PEDESTRIAN
 model=gen_sloper4d_$model_type
-python compute_fid.py -m $model/$epoch -r $root_dir -s $split -e $eval_model -cls human -i $channels -pckpt $pnet_ckpt -sl $silent
+CUDA_VISIBLE_DEVICES=$gpu_id python compute_fid.py -m $model/$epoch -r $root_dir -s $split -e $eval_model -cls human -i $channels -pckpt $pnet_ckpt -sl $silent
 
 cd ../
