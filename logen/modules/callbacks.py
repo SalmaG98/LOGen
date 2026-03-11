@@ -70,7 +70,7 @@ class GenerationEvalCallback(Callback):
             # after eval callback we mush evaluate using the previous validation epoch
             epoch = trainer.current_epoch
             # Run only every N epochs
-            if (epoch+1) % self.run_every_epochs != 0:
+            if epoch % self.run_every_epochs != 0:
                 return
 
             ckpt_path = trainer.checkpoint_callback.last_model_path
@@ -80,7 +80,7 @@ class GenerationEvalCallback(Callback):
 
             # 1) Run generation script
             print(f"[GEN-EVAL CALLBACK] Launching generation for epoch {epoch}")
-            gen_cmd = ["bash", self.gen_script] + self.gen_args + [f"{epoch}"]
+            gen_cmd = ["bash", self.gen_script] + self.gen_args + [f"{epoch}-last"]
             gen_proc = self._run_cmd_async(gen_cmd, cwd=self.project_root)
 
             if gen_proc is not None:
