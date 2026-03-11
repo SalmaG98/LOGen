@@ -26,7 +26,7 @@ class Sloper4DObjectsSet(Dataset):
                 input_channels=3,
                 excluded_tokens=None,
                 permutation=[],
-                n_samples=None,
+                n_samples=-1,
                 ):
         super().__init__()
         with open(data_dir, 'rb') as f:
@@ -51,7 +51,7 @@ class Sloper4DObjectsSet(Dataset):
         self.n_samples = n_samples
 
     def __len__(self):
-        if self.n_samples is not None:
+        if self.n_samples != -1:
             return self.n_samples
         else:
             return self.nr_data
@@ -72,7 +72,7 @@ class Sloper4DObjectsSet(Dataset):
         object_points = points.T[:,:3] 
         num_points = object_points.shape[0]
         padding_mask = torch.zeros((object_points.shape[0]))
-        
+        # SG(TODO): transform points in a local frame
         center = cartesian_to_cylindrical(center).squeeze(0)
 
         class_label = torch.tensor(class_mapping[class_name])
