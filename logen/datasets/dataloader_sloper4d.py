@@ -73,6 +73,7 @@ class Sloper4DObjectsSet(Dataset):
         num_points = object_points.shape[0]
         padding_mask = torch.zeros((object_points.shape[0]))
         # SG(TODO): transform points in a local frame
+        object_points -= center
         center = cartesian_to_cylindrical(center).squeeze(0)
 
         class_label = torch.tensor(class_mapping[class_name])
