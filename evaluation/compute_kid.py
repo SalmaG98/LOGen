@@ -24,9 +24,9 @@ def get_kid(model_name, root, split, object_class, evaluation_model, input_chann
     print(f'Evaluating: {model_name} {split}')
     rootdir = root + '/' + model_name
     dl_generated = NuscenesGeneratedObjectsDataLoader(root=rootdir, real_or_generated='generated', split=split, num_points=1024, input_channels=input_channels, object_class=object_class)
-    dl_generated = torch.utils.data.DataLoader(dl_generated, batch_size=1, shuffle=False, pin_memory=True, num_workers=4)
+    dl_generated = torch.utils.data.DataLoader(dl_generated, batch_size=1, shuffle=False, pin_memory=True, num_workers=16)
     dl_real =      NuscenesGeneratedObjectsDataLoader(root=rootdir, real_or_generated='real', split=split, num_points=1024, input_channels=input_channels, object_class=object_class)
-    dl_real =      torch.utils.data.DataLoader(dl_real, batch_size=1, shuffle=False, pin_memory=True, num_workers=4)
+    dl_real =      torch.utils.data.DataLoader(dl_real, batch_size=1, shuffle=False, pin_memory=True, num_workers=16)
 
     device = torch.device('cuda:0')
 
@@ -87,10 +87,10 @@ def get_kid(model_name, root, split, object_class, evaluation_model, input_chann
 
     kid_mean, kid_std  = kid.compute()
 
-    print('Kernel Pointcloud Distance <<< {:.10f} {:.10f} >>>'.format(kid_mean,kid_std))
-    os.makedirs(f'./evaluation/kid/experiments_distance_gens_05x_{input_channels}ch/{model_name}', exist_ok=True)
-    with open(f'./evaluation/kid/experiments_distance_gens_05x_{input_channels}ch/{model_name}/kid_{evaluation_model}_{split}_{object_class}.txt', 'w') as f:
-        print('Kernel Pointcloud Distance <<< {:.10f} {:.10f} >>>'.format(kid_mean,kid_std), file=f)
+    print('KID mean <<< {:.10f} >>> and std <<< {:.10f}'.format(kid_mean,kid_std))
+    os.makedirs(f'./evaluation/kid/{rootdir.split("/")[-4]}/{model_name}', exist_ok=True)
+    with open(f'./evaluation/kid/{rootdir.split("/")[-4]}/{model_name}/kid_{evaluation_model}_{split}_{object_class}.txt', 'w') as f:
+        print('KID mean <<< {:.10f} >>> and std <<< {:.10f} >>>'.format(kid_mean,kid_std), file=f)
 
     return {
         "kid_mean": kid_mean.item(),

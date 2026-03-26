@@ -40,7 +40,7 @@ def get_jsd(model_name, root, split, object_class, input_channels):
     print(f'Evaluating: {model_name} {split}', flush=True)
     rootdir = root + '/' + model_name
     dl = NuscenesPairedObjectsDataLoader(root=rootdir, split=split, input_channels=input_channels, object_class=object_class)
-    dl = torch.utils.data.DataLoader(dl, batch_size=1, shuffle=False, pin_memory=True, num_workers=0)
+    dl = torch.utils.data.DataLoader(dl, batch_size=1, shuffle=False, pin_memory=True, num_workers=16)
 
     device = torch.device('cuda:0')
 
@@ -52,8 +52,8 @@ def get_jsd(model_name, root, split, object_class, input_channels):
     # jsd_score = jsd.compute()
 
     print('JSD mean <<< {:.10f} >>> and std <<< {:.10f} >>> '.format(jsd_score[0], jsd_score[1]))
-    os.makedirs(f'./evaluation/jsd/experiments_distance_gens_05x_{input_channels}ch/{model_name}', exist_ok=True)
-    with open(f'./evaluation/jsd/experiments_distance_gens_05x_{input_channels}ch/{model_name}/jsd_{split}_{object_class}.txt', 'w') as f:
+    os.makedirs(f'./evaluation/jsd/{rootdir.split("/")[-4]}/{model_name}', exist_ok=True)
+    with open(f'./evaluation/jsd/{rootdir.split("/")[-4]}/{model_name}/jsd_{split}_{object_class}.txt', 'w') as f:
         print('JSD mean <<< {:.10f} >>> and std <<< {:.10f} >>> '.format(jsd_score[0], jsd_score[1]), file=f)    
         
     return {

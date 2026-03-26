@@ -171,7 +171,7 @@ def get_1nn_cov(model_name, root, split, object_class, input_channels, distance_
     print(f'Evaluating: {model_name} {split} on distance method {distance_method}')
     rootdir = root + '/' + model_name
     dl = NuscenesPairedObjectsDataLoader(root=rootdir, split=split, input_channels=input_channels, object_class=object_class)
-    dl = torch.utils.data.DataLoader(dl, batch_size=1, shuffle=False, pin_memory=True, num_workers=0)
+    dl = torch.utils.data.DataLoader(dl, batch_size=1, shuffle=False, pin_memory=True, num_workers=16)
 
     # device = torch.device('cuda:0')
     # sample_pcs = torch.rand((2, 5, 3))
@@ -210,8 +210,8 @@ def get_1nn_cov(model_name, root, split, object_class, input_channels, distance_
     results = {k: (v.cpu().detach().item()
                    if not isinstance(v, float) else v) for k, v in results.items()}
 
-    os.makedirs(f'./evaluation/1NN_COV/experiments/{model_name}', exist_ok=True)
-    with open(f'./evaluation/1NN_COV/experiments/{model_name}/{distance_method}_{split}_{object_class}.txt', 'w') as f:
+    os.makedirs(f'./evaluation/1NN_COV/{rootdir.split("/")[-4]}/{model_name}', exist_ok=True)
+    with open(f'./evaluation/1NN_COV/{rootdir.split("/")[-4]}/{model_name}/{distance_method}_{split}_{object_class}.txt', 'w') as f:
         for kk in results:
             print(f'{kk}: {results[kk]} ', file=f)
 

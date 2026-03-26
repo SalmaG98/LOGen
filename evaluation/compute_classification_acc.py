@@ -25,9 +25,9 @@ def get_kid(model_name, root, split, object_class, evaluation_model, input_chann
         print(f'Evaluating GTs.')
     rootdir = root + '/' + model_name
     dl_generated = NuscenesGeneratedObjectsDataLoader(root=rootdir, real_or_generated='generated', split=split, num_points=1024, input_channels=input_channels, object_class=object_class)
-    dl_generated = torch.utils.data.DataLoader(dl_generated, batch_size=1, shuffle=False, pin_memory=True, num_workers=4)
+    dl_generated = torch.utils.data.DataLoader(dl_generated, batch_size=1, shuffle=False, pin_memory=True, num_workers=16)
     dl_real =      NuscenesGeneratedObjectsDataLoader(root=rootdir, real_or_generated='real', split=split, num_points=1024, input_channels=input_channels, object_class=object_class)
-    dl_real =      torch.utils.data.DataLoader(dl_real, batch_size=1, shuffle=False, pin_memory=True, num_workers=4)
+    dl_real =      torch.utils.data.DataLoader(dl_real, batch_size=1, shuffle=False, pin_memory=True, num_workers=16)
 
     device = torch.device('cuda:0')
 
@@ -79,6 +79,12 @@ def get_kid(model_name, root, split, object_class, evaluation_model, input_chann
     print(f"Correct instance number: {correct}")
     print(f"Total instance number: {total}")
     print(f"Accuracy is  {correct/total}")
+
+    os.makedirs(f'./evaluation/class_acc/{rootdir.split("/")[-4]}/{model_name}', exist_ok=True)
+    with open(f'./evaluation/class_acc/{rootdir.split("/")[-4]}/{model_name}/class_acc_{split}_{object_class}_real={real}.txt', 'w') as f:
+        print(f"Correct instance number: {correct}", file=f)
+        print(f"Total instance number: {total}", file=f)
+        print(f"Accuracy is  {correct/total}", file=f)
 
     return {
         "accuracy": correct/total

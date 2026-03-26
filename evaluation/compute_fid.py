@@ -21,9 +21,9 @@ def get_fid(model_name, root, split, object_class, evaluation_model, input_chann
     rootdir = root + '/' + model_name
 
     dl_generated = NuscenesGeneratedObjectsDataLoader(root=rootdir, real_or_generated='generated', split=split, num_points=1024, input_channels=input_channels, object_class=object_class)
-    dl_generated = torch.utils.data.DataLoader(dl_generated, batch_size=1, shuffle=False, pin_memory=True, num_workers=4)
+    dl_generated = torch.utils.data.DataLoader(dl_generated, batch_size=1, shuffle=False, pin_memory=True, num_workers=16)
     dl_real =      NuscenesGeneratedObjectsDataLoader(root=rootdir, real_or_generated='real', split=split, num_points=1024, input_channels=input_channels, object_class=object_class)
-    dl_real =      torch.utils.data.DataLoader(dl_real, batch_size=1, shuffle=False, pin_memory=True, num_workers=4)
+    dl_real =      torch.utils.data.DataLoader(dl_real, batch_size=1, shuffle=False, pin_memory=True, num_workers=16)
 
     device = torch.device('cuda:0')
 
@@ -67,10 +67,10 @@ def get_fid(model_name, root, split, object_class, evaluation_model, input_chann
 
     fid_score = fid.compute()
 
-    print('Frechet Inception Distance <<< {:.10f} >>>'.format(fid_score))
-    os.makedirs(f'./evaluation/fid/experiments_distance_gens_05x_{input_channels}ch/{model_name}', exist_ok=True)
-    with open(f'./evaluation/fid/experiments_distance_gens_05x_{input_channels}ch/{model_name}/fid_{evaluation_model}_{split}_{object_class}.txt', 'w') as f:
-        print('Frechet Pointcloud Distance <<< {:.10f} >>>'.format(fid_score), file=f)
+    print('FID <<< {:.10f} >>>'.format(fid_score))
+    os.makedirs(f'./evaluation/fid/{rootdir.split("/")[-4]}/{model_name}', exist_ok=True)
+    with open(f'./evaluation/fid/{rootdir.split("/")[-4]}/{model_name}/fid_{evaluation_model}_{split}_{object_class}.txt', 'w') as f:
+        print('FID <<< {:.10f} >>>'.format(fid_score), file=f)
 
     return {
         "fid": fid_score.item()

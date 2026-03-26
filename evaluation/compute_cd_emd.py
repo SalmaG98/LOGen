@@ -12,7 +12,7 @@ def get_cd_emd(model_name, root, split, object_class, input_channels):
     print(f'Evaluating: {model_name} {split}', flush=True)
     rootdir = root + '/' + model_name
     dl = NuscenesPairedObjectsDataLoader(root=rootdir, split=split, input_channels=input_channels, object_class=object_class)
-    dl = torch.utils.data.DataLoader(dl, batch_size=1, shuffle=False, pin_memory=True, num_workers=0)
+    dl = torch.utils.data.DataLoader(dl, batch_size=1, shuffle=False, pin_memory=True, num_workers=16)
 
     device = torch.device('cuda:0')
 
@@ -25,8 +25,8 @@ def get_cd_emd(model_name, root, split, object_class, input_channels):
     emd_score = calculate_cd_emd(dl, emd, device=device, needs_pointclouds=False)
     print('EMD mean <<< {:.10f} >>> and std <<< {:.10f} >>>'.format(emd_score[0], emd_score[1]))
 
-    os.makedirs(f'./evaluation/CD_EMD/experiments/{model_name}', exist_ok=True)
-    with open(f'./evaluation/CD_EMD/experiments/{model_name}/cd_emd_{split}_{object_class}.txt', 'w') as f:
+    os.makedirs(f'./evaluation/CD_EMD/{rootdir.split("/")[-4]}/{model_name}', exist_ok=True)
+    with open(f'./evaluation/CD_EMD/{rootdir.split("/")[-4]}/{model_name}/cd_emd_{split}_{object_class}.txt', 'w') as f:
         print('CD mean <<< {:.10f} >>> and std <<< {:.10f} >>> '.format(cd_score[0], cd_score[1]), file=f)
         print('EMD mean <<< {:.10f} >>> and std <<< {:.10f} >>>'.format(emd_score[0], emd_score[1]), file=f)
 
