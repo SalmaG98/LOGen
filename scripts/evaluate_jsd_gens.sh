@@ -1,4 +1,6 @@
 # !/bin/bash
+cd ~/workspace/LOGen
+pip install -e .
 cd evaluation
 
 if [ "$#" -eq 4 ]; then # script received model_name and gpu_id only
