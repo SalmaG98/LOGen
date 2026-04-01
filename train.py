@@ -17,10 +17,13 @@ def set_deterministic():
     torch.cuda.manual_seed(42)
     torch.backends.cudnn.deterministic = True
 
-def configure_cuda(ngpus=1):
+def configure_cuda(ngpus=1, reserve_last_for_gen_eval=False):
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-    # ngpus-1 to leave out one gpus fully reserved for generation eval callback
-    os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, range(ngpus-1)))
+    if reserve_last_for_gen_eval and ngpus > 1:
+        # Reserve last GPU for generation/eval
+        os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, range(ngpus - 1)))
+    else:
+        os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, range(ngpus)))
 
 @click.command()
 ### Add your options here
@@ -39,7 +42,7 @@ def configure_cuda(ngpus=1):
               type=str,
               help='path to checkpoint file (.ckpt) to resume training.',
               default=None)
-@click.option('--eval_gen_callback',
+@click.option('--gen_eval_callback',
               '-cb', 
               is_flag=True,
               help='whether to use callback for evaluation and generation during training. If enabled, the last gpu will be reserved for this callback and not used for training.')
@@ -50,16 +53,18 @@ def configure_cuda(ngpus=1):
               default=None)
 @click.option('--test', '-t', is_flag=True, help='test mode')
 
-def main(config, weights, checkpoint, resdir, test, eval_gen_callback):
+def main(config, weights, checkpoint, resdir, test, gen_eval_callback):
     if not test:
         set_deterministic()
 
     cfg = yaml.safe_load(open(config))
 
-    configure_cuda(cfg['train']['n_gpus'])
+    reserve_last_for_gen_eval = gen_eval_callback and cfg['train']['n_gpus'] > 1
+    configure_cuda(cfg['train']['n_gpus'], reserve_last_for_gen_eval)
 
     #SG(BUG): for now disabling gen_eval callback as it causes some issues with distributed training. Will fix this in the future and enable it by default.
-    if eval_gen_callback and cfg['train']['n_gpus'] > 1:
+    gen_eval_gpu_id = 0
+    if reserve_last_for_gen_eval:
         gen_eval_gpu_id = cfg['train']['n_gpus'] - 1 # provide the last gpu id (0 indexed) to the gen_eval callback
         cfg['train']['n_gpus'] -= 1
     
@@ -119,7 +124,7 @@ def main(config, weights, checkpoint, resdir, test, eval_gen_callback):
         run_every_epochs=50,
     )
 
-    if eval_gen_callback:
+    if gen_eval_callback:
         callbacks = [lr_monitor, periodic_checkpoint_saver, best_checkpoint_saver, gen_eval_cb]
     else:
         callbacks = [lr_monitor, periodic_checkpoint_saver, best_checkpoint_saver]

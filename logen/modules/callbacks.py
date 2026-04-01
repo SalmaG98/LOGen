@@ -5,7 +5,7 @@ import json
 from pytorch_lightning.callbacks.callback import Callback
 from typing_extensions import override
 import numpy as np
-
+import torch
 
 class GenerationEvalCallback(Callback):
     def __init__(
@@ -28,19 +28,6 @@ class GenerationEvalCallback(Callback):
         self.jobs = {}
 
     def _run_cmd_async(self, cmd, cwd=None):
-        # result = subprocess.run(
-        #     cmd,
-        #     cwd=cwd,
-        #     text=True,
-        #     capture_output=True,
-        #     check=True
-        # )
-        # if result.returncode != 0:
-        #     raise RuntimeError(
-        #         f"Command failed: {' '.join(cmd)}\n"
-        #         f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
-        #     )
-
         try:
             result = subprocess.Popen(
                 cmd,
@@ -64,11 +51,11 @@ class GenerationEvalCallback(Callback):
     @override
     def on_train_epoch_end(self, trainer, pl_module):
         if not trainer.sanity_checking and trainer.is_global_zero:
-            print("GEN-EVAL CALLBACK STARTED")
+            print(f"GEN-EVAL CALLBACK STARTED, callback attatched to rank {torch.distributed.get_rank()}")
 
             # SG(BUG): because pytorch lightining is reordering callbacks and calling checkpoint saving \
             # after eval callback we mush evaluate using the previous validation epoch
-            epoch = trainer.current_epoch
+            epoch = trainer.current_epoch - 1
             # Run only every N epochs
             if epoch % self.run_every_epochs != 0:
                 return
@@ -126,36 +113,6 @@ class GenerationEvalCallback(Callback):
 
                     job["eval"] = eval_procs
                     continue
-                # if eval_procs is None:
-
-                #     ret = gen_proc.poll()
-
-                #     if ret is None:
-                #         # generation still running
-                #         continue
-
-                #     stdout, stderr = gen_proc.communicate()
-
-                #     if ret != 0:
-                #         print(f"[GEN-EVAL CALLBACK][WARNING] Generation failed for epoch {ep}")
-                #         print(stderr)
-                #         finished_epochs.append(ep)
-                #         continue
-
-                #     print(f"[GEN-EVAL CALLBACK] Generation finished for epoch {ep}")
-
-                #     # Launch evaluation asynchronously
-                #     eval_procs = {}
-                #     for id, (script_name, extra_args) in enumerate(self.eval_args.items()):
-                #         script_path = os.path.join(self.eval_scripts_dir, script_name)
-                #         # add epoch number and silent flag
-                #         cmd = ["bash", script_path] + extra_args + [f"epoch_{ep}", "True"]
-                #         eval_procs[id] = self._run_cmd_async(cmd, cwd=self.project_root)
-
-                #     if eval_procs is not None:
-                #         job["eval"] = eval_procs
-                #     else:
-                #         finished_epochs.append(ep)
                 all_finished = True
 
                 for proc in eval_procs.values():
@@ -202,73 +159,3 @@ class GenerationEvalCallback(Callback):
             
             for ep in finished_epochs:
                 del self.jobs[ep]
-                # else:
-                #     stdouts = dict().fromkeys(range(len(self.eval_args.keys())))
-                #     stderrs = dict().fromkeys(range(len(self.eval_args.keys())))
-                #     rets = [eval_proc.poll() for eval_proc in eval_procs.values()]
-                #     if None in rets: 
-                #         continue
-                #     stdouts, stderrs = [eval_proc.communicate() for eval_proc in eval_procs.values()]
-                #     for ret in rets:
-                #         if ret != 0:
-                #             print(f"[WARNING] Eval failed for epoch {ep}")
-                #             print(stderr)
-
-                #     finished_epochs.append(ep)
-                #     print(f"[EVAL CALLBACK] Eval finished for epoch {ep}")
-
-                    # for k, eval_proc in eval_procs.items():
-                    #     ret = eval_proc.poll()
-
-                    #     if ret is None:
-                    #         # eval scripts are still running
-                    #         continue
-
-                    #     stdouts[k], stderrs[k] = eval_proc.communicate()
-
-                    #     if ret != 0:
-                    #         print(f"[WARNING] Eval failed for epoch {ep}")
-                    #         print(stderr)
-                    #         finished_epochs.append(ep)
-                    #         continue
-
-                    #     print(f"[EVAL CALLBACK] Eval finished for epoch {ep}")
-
-                    # try:
-                    #     metrics = self._parse_metrics_from_output(list(stdouts.values()))
-
-                    #     for metric in metrics.items():
-                    #         for name, value in metric.items():
-                    #             # Log metrics to Lightning
-                    #             pl_module.log(
-                    #                 f"eval/{ep}/{name}",
-                    #                 value,
-                    #                 on_step=False,
-                    #                 on_epoch=True,
-                    #             )
-
-                    # except Exception:
-                    #     print(f"[WARNING] Failed parsing metrics for epoch {ep}")
-                    #     traceback.print_exc()
-
-                    # finished_epochs.append(ep)
-
-
-            # 2) Run all eval scripts and collect metrics
-            # print("RUNNING EVALUATIONS")
-            # all_metrics = {}
-            # for script_name, extra_args in self.eval_args.items():
-            #     script_path = os.path.join(self.eval_scripts_dir, script_name)
-            #     # add epoch number and silent flag
-            #     cmd = ["bash", script_path] + extra_args + [f"epoch_{epoch}", "True"]
-            #     out = self._run_cmd_async(cmd, cwd=self.project_root)
-            #     metrics = self._parse_metrics_from_output(out.stdout)
-            #     # prefix by script name to avoid collisions
-            #     prefix = os.path.splitext(script_name)[0]
-            #     for k, v in metrics.items():
-            #         all_metrics[f"{prefix}/{k}"] = v
-
-            # # 3) Log metrics to Lightning
-            # for name, value in all_metrics.items():
-            #     # sync_dist if you use DDP
-            #     pl_module.log(name, value, on_step=False, on_epoch=True, prog_bar=False)
