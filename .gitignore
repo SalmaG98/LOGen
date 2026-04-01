@@ -186,8 +186,12 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignorecheckpoints
+
 checkpoints/
 results/
 .vscode/
+pytorch3d/
+scripts/
 experiments/
 evaluation/evaluation
+*.csv
