@@ -48,7 +48,7 @@ def realign_pointclouds_to_scan(points, orientation, center, aligned_angle):
     new_center = center.copy()
     # new_center[0] = angle_add(aligned_angle, orientation)
     new_center = cylindrical_to_cartesian(new_center[None, :]).squeeze(0)
-    # points[:, :3] += new_center
+    points[:, :3] += new_center
     if points.shape[1] > 3:
         points[:, 3] = inverse_scale_intensity(points[:, 3])
     return points
@@ -101,6 +101,7 @@ def gen(rank, world_size, cfg, weights, num_instances, split, rootdir, batch_siz
 
     torch.cuda.set_device(rank)
     device = torch.device(f'cuda:{rank}')
+    print(f'!!!!!!!!!!!!!!!!!!!!!!DEVICE={device}, RANK={rank}!!!!!!!!!!!!!!!!!!!!!')
 
     if token_to_data is not None:
         with open(token_to_data, 'r') as f:
