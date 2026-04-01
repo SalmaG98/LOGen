@@ -140,10 +140,14 @@ def gen(rank, world_size, cfg, weights, num_instances, split, rootdir, batch_siz
             x_size = batch['size']
             x_orientation = batch['orientation']
             if cfg['model']['cyclic_conditions'] > 0:
+                #SG(NOTE): this is unused in our use case, in our dataloader we don't use relative angles. Has to be removed when code is cleaned.
                 if cfg['model']['relative_angles'] == True:
                     x_cond = torch.cat((x_center, x_size),-1)
                 else:
-                    x_cond = torch.cat((torch.hstack((x_center[:,0][:, None], x_orientation)), torch.hstack((x_center[:,1:], x_size))),-1)
+                    if cfg['model']['linear_conditions'] > 0:
+                        x_cond = torch.cat((torch.hstack((x_center[:,0][:, None], x_orientation)), torch.hstack((x_center[:,1:], x_size))),-1)
+                    else:
+                        x_cond = torch.cat((torch.hstack((x_center[:,0][:, None], x_orientation)), x_center[:,1:]),-1)
             else:
                 x_cond = torch.hstack((x_center, x_size, x_orientation))
 

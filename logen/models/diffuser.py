@@ -169,10 +169,14 @@ class Diffuser(LightningModule):
         x_class = batch['class']
 
         if self.hparams['model']['cyclic_conditions'] > 0:
+            #SG(NOTE): this is unused in our use case, in our dataloader we don't use relative angles. Has to be removed when code is cleaned.
             if self.hparams['model']['relative_angles'] == True:
                 x_cond = torch.cat((x_center, x_size),-1)
             else:
-                x_cond = torch.cat((torch.hstack((x_center[:,0][:, None], x_orientation)), torch.hstack((x_center[:,1:], x_size))),-1)
+                if self.hparams['model']['linear_conditions'] > 0:
+                    x_cond = torch.cat((torch.hstack((x_center[:,0][:, None], x_orientation)), torch.hstack((x_center[:,1:], x_size))),-1)
+                else:
+                    x_cond = torch.cat((torch.hstack((x_center[:,0][:, None], x_orientation)), x_center[:,1:]),-1)
         else:
             x_cond = torch.hstack((x_center, x_size, x_orientation))
         
@@ -213,10 +217,14 @@ class Diffuser(LightningModule):
             x_orientation = batch['orientation']
 
             if self.hparams['model']['cyclic_conditions'] > 0:
+                #SG(NOTE): this is unused in our use case, in our dataloader we don't use relative angles. Has to be removed when code is cleaned.
                 if self.hparams['model']['relative_angles'] == True:
                     x_cond = torch.cat((x_center, x_size),-1)
                 else:
-                    x_cond = torch.cat((torch.hstack((x_center[:,0][:, None], x_orientation)), torch.hstack((x_center[:,1:], x_size))),-1)
+                    if self.hparams['model']['linear_conditions'] > 0:
+                        x_cond = torch.cat((torch.hstack((x_center[:,0][:, None], x_orientation)), torch.hstack((x_center[:,1:], x_size))),-1)
+                    else:
+                        x_cond = torch.cat((torch.hstack((x_center[:,0][:, None], x_orientation)), x_center[:,1:]),-1)
             else:
                 x_cond = torch.hstack((x_center, x_size, x_orientation))
 
@@ -277,7 +285,19 @@ class Diffuser(LightningModule):
 
             x_center = batch['center']
             x_size = batch['size']
-            x_cond = torch.cat((x_center, x_size),-1)
+            x_orientation = batch['orientation']
+
+            if self.hparams['model']['cyclic_conditions'] > 0:
+                #SG(NOTE): this is unused in our use case, in our dataloader we don't use relative angles. Has to be removed when code is cleaned.
+                if self.hparams['model']['relative_angles'] == True:
+                    x_cond = torch.cat((x_center, x_size),-1)
+                else:
+                    if self.hparams['model']['linear_conditions'] > 0:
+                        x_cond = torch.cat((torch.hstack((x_center[:,0][:, None], x_orientation)), torch.hstack((x_center[:,1:], x_size))),-1)
+                    else:
+                        x_cond = torch.cat((torch.hstack((x_center[:,0][:, None], x_orientation)), x_center[:,1:]),-1)
+            else:
+                x_cond = torch.hstack((x_center, x_size, x_orientation))
 
             padding_mask = batch['padding_mask']
             x_t = torch.randn(x_object.shape, device=self.device)
