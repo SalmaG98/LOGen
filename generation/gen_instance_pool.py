@@ -17,6 +17,7 @@ from diffusers import DPMSolverMultistepScheduler
 from nuscenes.utils.data_classes import Quaternion
 
 from logen.models.diffuser import Diffuser
+from logen.models.flow_matcher import FlowMatcher
 from logen.datasets.dataset_mapper import dataloaders
 from logen.modules.three_d_helpers import cylindrical_to_cartesian, angle_add, estimate_lidar_points_batched
 
@@ -74,7 +75,8 @@ def generate_new_distances(D_0, num_instances, min_factor=0.5, max_factor=2.0, s
 @click.option('--permutation_file', type=str, default=None)
 @click.option('--limit_samples_count', type=int, default=-1)
 @click.option('--condition', type=str, default='cylinder_angle')
-def main(config, weights, num_instances, split, rootdir, token_to_data, consistent_seed, permutation_file, limit_samples_count, condition):
+@click.option('--technique', '-tc', type=str, help='technique: "diffusion" or "flow_matching"', default='diffusion')
+def main(config, weights, num_instances, split, rootdir, token_to_data, consistent_seed, permutation_file, limit_samples_count, condition, technique):
     cfg = yaml.safe_load(open(config))
     world_size = cfg['train']['n_gpus']
     # configure_cuda(world_size)
@@ -83,11 +85,11 @@ def main(config, weights, num_instances, split, rootdir, token_to_data, consiste
     existing_tokens = set(path.split('/')[-2] for path in existing_paths)
 
     if world_size > 1:
-        spawn(gen, args=(world_size, cfg, weights, num_instances, split, rootdir, cfg['train']['batch_size'], token_to_data, consistent_seed, existing_tokens, permutation_file, limit_samples_count, condition), nprocs=world_size, join=True)
+        spawn(gen, args=(world_size, cfg, weights, num_instances, split, rootdir, cfg['train']['batch_size'], token_to_data, consistent_seed, existing_tokens, permutation_file, limit_samples_count, condition, technique), nprocs=world_size, join=True)
     else:
-        gen(0, world_size, cfg, weights, num_instances, split, rootdir, cfg['train']['batch_size'], token_to_data, consistent_seed, existing_tokens, permutation_file, limit_samples_count, condition)
+        gen(0, world_size, cfg, weights, num_instances, split, rootdir, cfg['train']['batch_size'], token_to_data, consistent_seed, existing_tokens, permutation_file, limit_samples_count, condition, technique)
 
-def gen(rank, world_size, cfg, weights, num_instances, split, rootdir, batch_size, token_to_data, consistent_seed, existing_tokens, permutation_file, limit_samples_count, condition):
+def gen(rank, world_size, cfg, weights, num_instances, split, rootdir, batch_size, token_to_data, consistent_seed, existing_tokens, permutation_file, limit_samples_count, condition, technique):
     #SG(BUG): suspicion that rank might always be zero even if gen.sh sets CUDA_VISIBLE_DEVICES to something else here device = torch.device(f'cuda:{rank}') rank might be 0 
     if consistent_seed:
         set_deterministic(rank)
@@ -107,8 +109,10 @@ def gen(rank, world_size, cfg, weights, num_instances, split, rootdir, batch_siz
         with open(token_to_data, 'r') as f:
             token_to_data_map = json.load(f)[split]
 
-
-    model = Diffuser.load_from_checkpoint(weights, hparams=cfg, strict=False).to(device)
+    if technique == 'flow_matching':
+        model = FlowMatcher.load_from_checkpoint(weights, hparams=cfg, strict=False).to(device)
+    else:
+        model = Diffuser.load_from_checkpoint(weights, hparams=cfg, strict=False).to(device)
     model = DDP(model, device_ids=[rank])
 
     existing_tokens = set()
@@ -122,16 +126,18 @@ def gen(rank, world_size, cfg, weights, num_instances, split, rootdir, batch_siz
     model.eval()
     with torch.no_grad():
         for batch in tqdm(dataloader):
-            model.module.dpm_scheduler = DPMSolverMultistepScheduler(
-                num_train_timesteps=model.module.t_steps,
-                beta_start=model.module.hparams['diff']['beta_start'],
-                beta_end=model.module.hparams['diff']['beta_end'],
-                beta_schedule='linear',
-                algorithm_type='sde-dpmsolver++',
-                solver_order=2
-            )
-            model.module.dpm_scheduler.set_timesteps(model.module.s_steps)
-            model.module.scheduler_to_cuda()
+            if technique == 'diffusion':
+                model.module.dpm_scheduler = DPMSolverMultistepScheduler(
+                    num_train_timesteps=model.module.t_steps,
+                    beta_start=model.module.hparams['diff']['beta_start'],
+                    beta_end=model.module.hparams['diff']['beta_end'],
+                    beta_schedule='linear',
+                    algorithm_type='sde-dpmsolver++',
+                    solver_order=2
+                )
+                model.module.dpm_scheduler.set_timesteps(model.module.s_steps)
+                model.module.scheduler_to_cuda()
+
             x_object = batch['pcd_object'].to(device)
             padding_mask = batch['padding_mask'].to(device)
             annotation_tokens = batch['tokens']
@@ -185,7 +191,10 @@ def gen(rank, world_size, cfg, weights, num_instances, split, rootdir, batch_siz
                 raise ValueError(f"Unknown interpolation condition: {condition}")
 
             x_cond = x_cond.to(device)
-            x_gen = model.module.p_sample_loop(x_t, x_class, x_cond, padding_mask[:, None, :]).permute(0, 2, 1).cpu().numpy()
+            if technique == 'diffusion':
+                x_gen = model.module.p_sample_loop(x_t, x_class, x_cond, padding_mask[:, None, :]).permute(0, 2, 1).cpu().numpy()
+            else:
+                x_gen = model.module.sample_loop(x_t, x_class, x_cond, padding_mask[:, None, :]).permute(0, 2, 1).cpu().numpy()
             x_org = x_object.permute(0, 2, 1).cpu().numpy()
 
             for i in range(x_gen.shape[0]):

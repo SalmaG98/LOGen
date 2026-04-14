@@ -9,6 +9,7 @@ import torch
 import yaml
 from logen.datasets.dataset_mapper import dataloaders
 from logen.models.diffuser import Diffuser
+from logen.models.flow_matcher import FlowMatcher
 from logen.modules.callbacks import GenerationEvalCallback
 
 def set_deterministic():
@@ -52,8 +53,10 @@ def configure_cuda(ngpus=1, reserve_last_for_gen_eval=False):
               help='path to save generation results in eval callbacks.',
               default=None)
 @click.option('--test', '-t', is_flag=True, help='test mode')
+@click.option('--technique', '-tc', type=str, help='technique: "diffusion" or "flow_matching"', 
+              default='diffusion')
 
-def main(config, weights, checkpoint, resdir, test, gen_eval_callback):
+def main(config, weights, checkpoint, resdir, test, gen_eval_callback, technique):
     if not test:
         set_deterministic()
 
@@ -70,13 +73,19 @@ def main(config, weights, checkpoint, resdir, test, gen_eval_callback):
     
     #Load data and model
     if weights is None:
-        model = Diffuser(cfg)
+        if technique == 'flow_matching':
+            model = FlowMatcher(cfg)
+        else:
+            model = Diffuser(cfg)
     else:
         if test:
             ckpt_cfg = yaml.safe_load(open(config))
             cfg = ckpt_cfg
 
-        model = Diffuser(cfg)
+        if technique == 'flow_matching':
+            model = FlowMatcher(cfg)
+        else:
+            model = Diffuser(cfg)
         model = model.load_from_checkpoint(weights, hparams=cfg)
 
     dl = cfg['data']['dataloader']
